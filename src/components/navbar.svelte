@@ -1,26 +1,60 @@
-
 <script>
+    import { page } from '$app/stores';
     import { Icon } from 'svelte-icons-pack';
-    import { FaSolidCalendar } from "svelte-icons-pack/fa";
-    import { FaSolidBell } from "svelte-icons-pack/fa";
-    import { HiSolidMapPin } from "svelte-icons-pack/hi";
-    import { FaSolidUser } from "svelte-icons-pack/fa";
-
-    
-</script>
-<nav>
-    <li><a href="/maps">
-        <Icon src={HiSolidMapPin} /></a></li> <!-- location button -->
-    <li><a href="/collections"><Icon src={FaSolidCalendar} /></a></li> <!-- claendar button  -->
-    <li><a href="/user"><Icon src={FaSolidUser} /></a></li> <!-- user button -->
-    <li><a href="/notif"><Icon src={FaSolidBell} /></a></li> <!-- notif button -->
-
-</nav>
+    import { FaSolidLocationPin, FaSolidCalendar, FaSolidUser, FaSolidBell } from "svelte-icons-pack/fa";
+  </script>
+  
+  <nav>
+    <li>
+      <a href="/maps">
+        <Icon
+          src={FaSolidLocationPin}
+          size={24}
+          color={$page.url.pathname === '/maps' ? 'green' : 'black'}
+        />
+      </a>
+      <p class="text-center text-sm">Map</p>
+    </li>
+  
+    <li>
+      <a href="/collections">
+        <Icon
+          src={FaSolidCalendar}
+          size={24}
+          color={$page.url.pathname === '/collections' ? 'green' : 'black'}
+        />
+      </a>
+      <p class="text-center text-sm">Calendar</p>
+    </li>
+  
+    <li>
+      <a href="/user">
+        <Icon
+          src={FaSolidUser}
+          size={24}
+          color={$page.url.pathname === '/user' ? 'green' : 'black'}
+        />
+      </a>
+      <p class="text-center text-sm">User</p>
+    </li>
+  
+    <li>
+      <a href="/notif">
+        <Icon
+          src={FaSolidBell}
+          size={24}
+          color={$page.url.pathname === '/notif' ? 'green' : 'black'}
+        />
+      </a>
+      <p class="text-center text-sm">Notifications</p>
+    </li>
+  </nav>
+  
 
 <style>
-    nav{
-        
 
+     
+    nav{
         display: grid;
         justify-items: center;
         align-items: center;
@@ -41,7 +75,12 @@
         background-color: white;
 
         li{
-            list-style: none;
+        list-style: none;
+        display: flex
+;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
         }
 
     }
