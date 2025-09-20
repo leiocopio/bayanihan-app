@@ -14,20 +14,23 @@
   
       // Add a marker for San Jose del Monte
       L.marker([14.81389, 121.04528])
-        .addTo(map)
-        .bindPopup("San Jose del Monte, Bulacan")
-        .openPopup();
+
     });
   </script>
   <div>
-    <p>Maps</p>
+    <p class="text-2xl font-bold mb-4">Maps</p>
+
+  <br>
+  <p>
+    C
+  </p>
   </div>
   <div id="map"></div>
   
   <style>
     #map {
       width: 100vw;
-      height: 88.5vh;
+      height: 90vh;
       z-index: 0;
     }
   </style>

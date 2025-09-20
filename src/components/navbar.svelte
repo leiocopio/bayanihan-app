@@ -1,52 +1,63 @@
 <script>
     import { page } from '$app/stores';
     import { Icon } from 'svelte-icons-pack';
+    import { IoHome } from "svelte-icons-pack/io";
     import { FaSolidLocationPin, FaSolidCalendar, FaSolidUser, FaSolidBell } from "svelte-icons-pack/fa";
   </script>
   
-  <nav>
+  <nav class="px-1">
     <li>
-      <a href="/maps">
+      <a href="/maps" class={$page.url.pathname === '/maps' ? 'bg-green-800 rounded-full p-3' : ''}>
         <Icon
           src={FaSolidLocationPin}
           size={24}
-          color={$page.url.pathname === '/maps' ? 'green' : 'black'}
+          color={$page.url.pathname === '/maps' ? 'white' : 'black'}
         />
       </a>
-      <p class="text-center text-sm">Map</p>
+
     </li>
   
     <li>
-      <a href="/collections">
+      <a href="/collections" class={$page.url.pathname === '/collections' ? 'bg-green-800 rounded-full p-3' : ''}>
         <Icon
           src={FaSolidCalendar}
           size={24}
-          color={$page.url.pathname === '/collections' ? 'green' : 'black'}
+          color={$page.url.pathname === '/collections' ? 'white' : 'black'}
         />
       </a>
-      <p class="text-center text-sm">Calendar</p>
+
     </li>
-  
     <li>
-      <a href="/user">
+      <a href="/" class={$page.url.pathname === '/' ? 'bg-green-800 rounded-full p-3' : ''}>
+        <Icon
+          src={IoHome}
+          size={24}
+          color={$page.url.pathname === '/' ? 'white' : 'black'}
+        />
+      </a>
+
+    </li>
+    
+    <li>
+      <a href="/user" class={$page.url.pathname === '/user' ? 'bg-green-800 rounded-full p-3' : ''}>
         <Icon
           src={FaSolidUser}
           size={24}
-          color={$page.url.pathname === '/user' ? 'green' : 'black'}
+          color={$page.url.pathname === '/user' ? 'white' : 'black'}
         />
       </a>
-      <p class="text-center text-sm">User</p>
+
     </li>
   
     <li>
-      <a href="/notif">
+      <a href="/notif" class={$page.url.pathname === '/notif' ? 'bg-green-800 rounded-full p-3' : ''}>
         <Icon
           src={FaSolidBell}
           size={24}
-          color={$page.url.pathname === '/notif' ? 'green' : 'black'}
+          color={$page.url.pathname === '/notif' ? 'white' : 'black'}
         />
       </a>
-      <p class="text-center text-sm">Notifications</p>
+
     </li>
   </nav>
   
@@ -58,7 +69,7 @@
         display: grid;
         justify-items: center;
         align-items: center;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(5, 1fr);
         grid-template-rows: 1fr;
         grid-column-gap: 0px;
         grid-row-gap: 0px;

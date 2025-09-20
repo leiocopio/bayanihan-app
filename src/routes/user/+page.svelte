@@ -1,5 +1,5 @@
 <div class="mx-2 flex flex-col justify-center items-center">
-    <h1>User Profile</h1>
+    <h1 class="text-2xl font-bold mb-4">User Profile</h1>
     <br>
     <div id="profile-pic">
     </div>
