@@ -3,9 +3,13 @@
     import { Icon } from 'svelte-icons-pack';
     import { IoHome } from "svelte-icons-pack/io";
     import { FaSolidLocationPin, FaSolidCalendar, FaSolidUser, FaSolidBell } from "svelte-icons-pack/fa";
+
+
   </script>
+
+
   
-  <nav class="px-1">
+  <nav class={$page.url.pathname === '/' && '/signup' ? "hidden": "visible grid justify-items-center items-center grid-cols-[repeat(5,1fr)] grid-rows-[1fr] gap-x-0 gap-y-0;" }>
     <li>
       <a href="/maps" class={$page.url.pathname === '/maps' ? 'bg-green-800 rounded-full p-3' : ''}>
         <Icon
@@ -28,7 +32,7 @@
 
     </li>
     <li>
-      <a href="/" class={$page.url.pathname === '/' ? 'bg-green-800 rounded-full p-3' : ''}>
+      <a href="/home" class={$page.url.pathname === '/home' ? 'bg-green-800 rounded-full p-3' : ''}>
         <Icon
           src={IoHome}
           size={24}
@@ -66,13 +70,7 @@
 
      
     nav{
-        display: grid;
-        justify-items: center;
-        align-items: center;
-        grid-template-columns: repeat(5, 1fr);
-        grid-template-rows: 1fr;
-        grid-column-gap: 0px;
-        grid-row-gap: 0px;
+
 
         height: 56px;
         width: 100vw;
