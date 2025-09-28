@@ -67,7 +67,7 @@
 			class="w-full rounded border p-2"
 			required
 		/>
-		<button type="submit" class="w-full rounded bg-blue-600 p-2 text-white hover:bg-blue-700">
+		<button type="submit" class="w-full rounded bg-green-600 p-2 text-white hover:bg-green-700">
 			Sign In
 		</button>
 	</form>
@@ -79,7 +79,7 @@
 		<p class="mt-2 text-green-600">{successMessage}</p>
 	{/if}
 
-	<button class="mt-4 w-full rounded bg-blue-600 p-2 text-white hover:bg-blue-700" on:click={signUp}>
+	<button class="mt-4 w-full rounded bg-green-600 p-2 text-white hover:bg-green-700" on:click={signUp}>
 		Sign Up
 	</button>
 </div>
