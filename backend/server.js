@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(
   cors({
-    origin: "http://localhost:5173", // your Svelte frontend
+    origin: process.env.FRONTEND_URL , // your Svelte frontend
     credentials: true,
   })
 );
