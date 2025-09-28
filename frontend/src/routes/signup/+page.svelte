@@ -1,37 +1,35 @@
 <script>
-	// @ts-nocheck
-
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { regions, provinces, cities, barangays } from 'select-philippines-address';
 
+	// Form fields
+	let first_name = '';
+	let last_name = '';
 	let email = '';
 	let pass = '';
 	let confirm_pass = '';
-	let first_name = '';
-	let last_name = '';
-	let address_street = '';
-	let address_bgy = '';
-	let address_city = '';
-	let address_province = '';
-	let address_region = '';
-	let user_type = '';
 	let contact_number = '';
+	let address_street = '';
 
-	let errorMessage = '';
-	let successMessage = '';
+	// Address codes
+	let address_region = '';
+	let address_province = '';
+	let address_city = '';
+	let address_bgy = '';
 
-	// For dropdown options
+	// Address options
 	let regionOptions = [];
 	let provinceOptions = [];
 	let cityOptions = [];
 	let barangayOptions = [];
 
-	// Load regions on mount
-	regions().then((data) => {
-		regionOptions = data;
+	let errorMessage = '';
+
+	onMount(async () => {
+		regionOptions = await regions();
 	});
 
-	// When region changes
 	async function handleRegionChange(e) {
 		address_region = e.target.value;
 		address_province = '';
@@ -42,12 +40,10 @@
 		barangayOptions = [];
 
 		if (address_region) {
-			const data = await provinces(address_region);
-			provinceOptions = data;
+			provinceOptions = await provinces(address_region);
 		}
 	}
 
-	// When province changes
 	async function handleProvinceChange(e) {
 		address_province = e.target.value;
 		address_city = '';
@@ -56,20 +52,17 @@
 		barangayOptions = [];
 
 		if (address_province) {
-			const data = await cities(address_province);
-			cityOptions = data;
+			cityOptions = await cities(address_province);
 		}
 	}
 
-	// When city changes
 	async function handleCityChange(e) {
 		address_city = e.target.value;
 		address_bgy = '';
 		barangayOptions = [];
 
 		if (address_city) {
-			const data = await barangays(address_city);
-			barangayOptions = data;
+			barangayOptions = await barangays(address_city);
 		}
 	}
 
@@ -82,37 +75,46 @@
 			errorMessage = 'Passwords do not match';
 			return;
 		}
-
 		try {
-			const res = await fetch('/api/signup', {
+			// Map codes -> names
+			const regionName =
+				regionOptions.find((r) => r.region_code === address_region)?.region_name || '';
+			const provinceName =
+				provinceOptions.find((p) => p.province_code === address_province)?.province_name || '';
+			const cityName = cityOptions.find((c) => c.city_code === address_city)?.city_name || '';
+			const barangayName =
+				barangayOptions.find((b) => b.brgy_code === address_bgy)?.brgy_name || '';
 
-				credentials: 'include',
+			const res = await fetch('/api/signup', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					email,
-					pass,
 					first_name,
 					last_name,
+					email,
+					pass,
+					contact_number,
 					address_street,
-					address_bgy,
-					address_city,
-					address_province,
-					address_region,
-					user_type,
-					contact_number
+
+					// Save codes
+					address_region_code: address_region,
+					address_province_code: address_province,
+					address_city_code: address_city,
+					address_bgy_code: address_bgy,
+
+					// Save names
+					address_region: regionName,
+					address_province: provinceName,
+					address_city: cityName,
+					address_bgy: barangayName
 				})
 			});
 
-			const data = await res.json();
-
-			if (!res.ok) {
-				errorMessage = data.error;
-				successMessage = '';
+			if (res.ok) {
+				goto('/home');
 			} else {
-				successMessage = `Account created for ${data.user.email}`;
-				errorMessage = '';
-				setTimeout(() => goto('/home'), 2000);
+				const data = await res.json();
+				errorMessage = data.error || 'Signup failed';
 			}
 		} catch (err) {
 			errorMessage = 'Network error';
@@ -120,45 +122,18 @@
 	}
 </script>
 
-<div class="mx-auto max-w-md rounded-xl bg-white p-8 shadow-lg">
-	<h2 class="mb-6 text-center text-2xl font-extrabold text-gray-800">Sign Up</h2>
-	<form on:submit|preventDefault={handleSignup} class="space-y-4">
-		<div>
-			<input
-				type="text"
-				bind:value={first_name}
-				placeholder="First Name"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			/>
-		</div>
-		<div>
-			<input
-				type="text"
-				bind:value={last_name}
-				placeholder="Last Name"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			/>
-		</div>
-		<div>
-			<input
-				type="email"
-				bind:value={email}
-				placeholder="Email"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			/>
-		</div>
-		<div>
-			<input
-				type="password"
-				bind:value={pass}
-				placeholder="Password"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			/>
-		</div>
+<div class="mx-auto max-w-md p-4">
+	<h1 class="mb-4 text-2xl font-bold">Sign Up</h1>
+
+	{#if errorMessage}
+		<p class="text-red-600">{errorMessage}</p>
+	{/if}
+
+	<form on:submit|preventDefault={handleSignup} class="flex flex-col gap-3">
+		<input type="text" bind:value={first_name} placeholder="First Name" class="input" required />
+		<input type="text" bind:value={last_name} placeholder="Last Name" class="input" required />
+		<input type="email" bind:value={email} placeholder="Email" class="input" required />
+		<input type="password" bind:value={pass} placeholder="Password" class="input" required />
 		<div>
 			<input
 				type="password"
@@ -171,97 +146,54 @@
 				<p class="text-sm text-red-600">Passwords do not match</p>
 			{/if}
 		</div>
-		<div>
-			<input
-				type="text"
-				bind:value={address_street}
-				placeholder="Street"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-			/>
-		</div>
-		<div>
-			<select
-				bind:value={address_region}
-				on:change={handleRegionChange}
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			>
-				<option value="">Select Region</option>
-				{#each regionOptions as r}
-					<option value={r.region_code}>{r.region_name}</option>
-				{/each}
-			</select>
-		</div>
+		<input
+			type="text"
+			bind:value={contact_number}
+			placeholder="Contact Number"
+			class="input"
+			required
+		/>
+		<input type="text" bind:value={address_street} placeholder="Street" class="input" required />
 
-		<div>
-			<select
-				bind:value={address_province}
-				on:change={handleProvinceChange}
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			>
-				<option value="">Select Province</option>
-				{#each provinceOptions as p}
-					<option value={p.province_code}>{p.province_name}</option>
-				{/each}
-			</select>
-		</div>
+		<!-- Region -->
+		<select class="input" on:change={handleRegionChange} required>
+			<option value="">Select Region</option>
+			{#each regionOptions as r}
+				<option value={r.region_code}>{r.region_name}</option>
+			{/each}
+		</select>
 
-		<div>
-			<select
-				bind:value={address_city}
-				on:change={handleCityChange}
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			>
-				<option value="">Select City</option>
-				{#each cityOptions as c}
-					<option value={c.city_code}>{c.city_name}</option>
-				{/each}
-			</select>
-		</div>
+		<select class="input" on:change={handleProvinceChange} required>
+			<option value="">Select Province</option>
+			{#each provinceOptions as p}
+				<option value={p.province_code}>{p.province_name}</option>
+			{/each}
+		</select>
 
-		<div>
-			<select
-				bind:value={address_bgy}
-				on:change={handleBarangayChange}
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-				required
-			>
-				<option value="">Select Barangay</option>
-				{#each barangayOptions as b}
-					<option value={b.brgy_code}>{b.brgy_name}</option>
-				{/each}
-			</select>
-		</div>
-		<div>
-			<input
-				type="text"
-				bind:value={user_type}
-				placeholder="User Type"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-			/>
-		</div>
-		<div>
-			<input
-				type="text"
-				bind:value={contact_number}
-				placeholder="Contact Number"
-				class="w-full rounded border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-green-400"
-			/>
-		</div>
-		<button
-			type="submit"
-			class="w-full rounded bg-green-600 p-3 font-semibold text-white transition hover:bg-green-700"
-		>
+		<select class="input" on:change={handleCityChange} required>
+			<option value="">Select City</option>
+			{#each cityOptions as c}
+				<option value={c.city_code}>{c.city_name}</option>
+			{/each}
+		</select>
+
+		<select class="input" on:change={handleBarangayChange} required>
+			<option value="">Select Barangay</option>
+			{#each barangayOptions as b}
+				<option value={b.brgy_code}>{b.brgy_name}</option>
+			{/each}
+		</select>
+
+		<button type="submit" class="mt-4 rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700">
 			Sign Up
 		</button>
 	</form>
-
-	{#if errorMessage}
-		<p class="mt-4 text-center text-red-600">{errorMessage}</p>
-	{/if}
-	{#if successMessage}
-		<p class="mt-4 text-center text-green-600">{successMessage}</p>
-	{/if}
 </div>
+
+<style>
+	.input {
+		border: 1px solid #ccc;
+		padding: 0.5rem;
+		border-radius: 0.25rem;
+	}
+</style>

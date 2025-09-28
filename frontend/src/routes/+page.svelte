@@ -6,11 +6,11 @@
 	let pass = '';
 	let errorMessage = '';
 	let successMessage = '';
+	let backend_url = import.meta.env.VITE_BACKEND_URL;
 
 	async function handleLogin() {
 		try {
-			const res = await fetch('/api/login', {
-				credentials: 'include',
+			const res = await fetch((backend_url) + '/api/login', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ email, pass})
@@ -46,7 +46,11 @@
 	});
 </script>
 
-<div class="mx-auto max-w-sm rounded-xl bg-white p-6 shadow-md">
+<div class="flex min-h-screen flex-col items-center justify-center bg-gray-100 p-4">
+	<h1 class="mb-4 text-3xl font-bold text-center">Bayanihan App</h1>
+	<p class="mb-6 text-center">Sign in to continue to your account</p>
+
+	<div class="mx-auto max-w-sm rounded-xl bg-white p-6 shadow-md">
 	<h2 class="mb-4 text-xl font-bold">Sign In</h2>
 	<form on:submit|preventDefault={handleLogin} class="space-y-4">
 		<input
@@ -79,3 +83,6 @@
 		Sign Up
 	</button>
 </div>
+
+</div>
+

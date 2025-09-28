@@ -1,54 +1,29 @@
 <script>
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	export let data; // comes from +page.js
 
-	
-	let user = null;
-	let errorMessage = '';
+	const user = data.user;
 
-	onMount(async () => {
+	async function handleLogout() {
+		if (!confirm('Are you sure you want to log out?')) return;
+
 		try {
-			const res = await fetch('/api/profile', {
+			const res = await fetch('/api/logout', {
+				method: 'POST',
 				credentials: 'include'
 			});
 
-			// 👇 check for unauthorized
-			if (res.status === 401) {
-				goto('/'); // redirect home
-				return;
-			}
-
-			const data = await res.json();
-
 			if (res.ok) {
-				user = data.user;
+				goto('/'); // redirect home
 			} else {
-				errorMessage = data.error || 'Failed to load profile';
+				const data = await res.json();
+				alert(data.error || 'Logout failed');
 			}
 		} catch (err) {
-			errorMessage = 'Network error';
+			alert('Network error while logging out');
+			goto('/');
 		}
-	});
-
-async function handleLogout() {
-	try {
-		const res = await fetch('/api/logout', {
-			method: 'POST',
-			credentials: 'include'
-		});
-
-		if (res.ok) {
-			goto('/'); // redirect home
-		} else {
-			const data = await res.json();
-			alert(data.error || 'Logout failed');
-		}
-	} catch (err) {
-		alert('Network error while logging out');
-        goto('/');
 	}
-}
-
 </script>
 
 <div class="mx-2 flex flex-col items-center justify-center">
@@ -61,22 +36,18 @@ async function handleLogout() {
 			<p><b>Name:</b><br />{user.first_name || 'N/A'} {user.last_name || ''}</p>
 			<p>
 				<b>Address:</b><br />
-				{user.address_street || ''}
-				{user.address_bgy || ''}
-				{user.address_city || ''}
-				{user.address_province || ''}
+				{user.address_street || ''} {user.address_bgy || ''}
+				{user.address_city || ''} {user.address_province || ''}
 			</p>
 			<p><b>Contact:</b><br />{user.contact_number || 'N/A'}</p>
 			<p><b>Email:</b><br />{user.email}</p>
 		</div>
-	{:else if errorMessage}
-		<p class="text-red-600">{errorMessage}</p>
 	{:else}
-		<p>Loading...</p>
+		<p class="text-red-600">Failed to load profile</p>
 	{/if}
 </div>
-<p>Settings</p>
 
+<p>Settings</p>
 <br />
 
 <button
@@ -95,3 +66,4 @@ async function handleLogout() {
 		margin-bottom: 1rem;
 	}
 </style>
+<!-- --- a/file:///c%3A/Users/Lei%20Ocopio/OneDrive/Documents/bayanihan-app/frontend/src/routes/user/%2Bpage.js -->

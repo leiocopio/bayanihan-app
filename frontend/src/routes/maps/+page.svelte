@@ -17,21 +17,22 @@
 
     });
   </script>
-  <div>
+  <div class="mx-2 my-4">
     <p class="text-2xl font-bold mb-4">Maps</p>
 
   <br>
   <p>
-    C
+    This map shows the location of garbage trucks in San Jose del Monte.
   </p>
   </div>
-  <div id="map"></div>
+  <div id="map" ></div>
   
   <style>
     #map {
-      width: 100vw;
-      height: 90vh;
+      width: 100%;
+      height: 79vh;
       z-index: 0;
+      
     }
   </style>
   
