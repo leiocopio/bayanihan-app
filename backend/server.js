@@ -3,6 +3,7 @@ import bodyParser from "body-parser";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -10,18 +11,24 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
+app.use(cookieParser());
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL , // your Svelte frontend
+    origin: process.env.FRONTEND_URL, // e.g. http://localhost:5173
     credentials: true,
   })
 );
 
-// Validate environment variables
+// Handle preflight OPTIONS
+app.options("*", cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true,
+}));
+
+// Validate env
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-  console.error(
-    "Missing SUPABASE_URL or SUPABASE_KEY in environment variables."
-  );
+  console.error("Missing SUPABASE_URL or SUPABASE_KEY in env.");
   process.exit(1);
 }
 
@@ -30,7 +37,44 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// Sign up route
+// ---------- AUTH HELPERS ----------
+
+// Save Supabase session tokens to cookies
+function setAuthCookies(res, session) {
+  res.cookie("sb-access-token", session.access_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 1000, // 1h
+  });
+  res.cookie("sb-refresh-token", session.refresh_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7 * 1000, // 7d
+  });
+}
+
+// Get user from cookies
+async function getUserFromCookies(req) {
+  const accessToken = req.cookies["sb-access-token"];
+  if (!accessToken) return null;
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(accessToken);
+
+  if (error) {
+    console.error("getUser error:", error.message);
+    return null;
+  }
+  return user;
+}
+
+// ---------- ROUTES ----------
+
+// Sign up
 app.post("/api/signup", async (req, res) => {
   const {
     email,
@@ -46,25 +90,23 @@ app.post("/api/signup", async (req, res) => {
     contact_number,
   } = req.body;
 
-  // Create user in Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password: pass,
   });
 
   if (error) {
-    // ✅ Catch duplicate email case
     if (error.message.includes("already registered")) {
       return res.status(400).json({ error: "Email already exists" });
     }
     return res.status(400).json({ error: error.message });
   }
 
-  // Insert into your public.users table
+  // Insert into your own table
   const { error: dbError } = await supabase.from("users").insert({
     id: data.user.id,
     email,
-    pass, // ⚠️ you may not need this column if Supabase Auth already stores it
+    pass, // ⚠️ storing plain password is not recommended!
     first_name,
     last_name,
     address_street,
@@ -83,7 +125,7 @@ app.post("/api/signup", async (req, res) => {
   res.json({ user: data.user });
 });
 
-// Sign-in route
+// Login
 app.post("/api/login", async (req, res) => {
   const { email, pass } = req.body;
 
@@ -96,29 +138,26 @@ app.post("/api/login", async (req, res) => {
     return res.status(400).json({ error: error.message });
   }
 
-  res.json({ user: data.user, session: data.session });
+  // Save tokens in cookies
+  setAuthCookies(res, data.session);
+
+  res.json({ user: data.user });
 });
 
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Wazzup?" });
-});
-
+// Profile
 app.get("/api/profile", async (req, res) => {
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  const user = await getUserFromCookies(req);
 
-  if (error || !user) {
+  if (!user) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
   const { data: userProfile, error: profileError } = await supabase
-    .from("users") // ✅ use your own table
+    .from("users")
     .select(
       "first_name, last_name, address_street, address_bgy, address_city, address_province, contact_number, email"
     )
-    .eq("id", user.id) // must match auth.users.id
+    .eq("id", user.id)
     .single();
 
   if (profileError) {
@@ -128,20 +167,18 @@ app.get("/api/profile", async (req, res) => {
   res.json({ user: userProfile });
 });
 
+// Logout
 app.post("/api/logout", async (req, res) => {
-  const { error } = await supabase.auth.signOut();
+  res.clearCookie("sb-access-token");
+  res.clearCookie("sb-refresh-token");
 
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
-
-  // If you use cookies, clear them here
-  res.clearCookie("sb:token"); // replace with your cookie name if different
-
-  // Always return JSON
   return res.json({ message: "Logged out successfully" });
 });
 
+// Test
+app.get("/api/test", (req, res) => {
+  res.json({ message: "Wazzup?" });
+});
 
 app.listen(PORT, () =>
   console.log(`Server running at http://localhost:${PORT}`)
