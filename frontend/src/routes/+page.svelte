@@ -9,7 +9,8 @@
 
 	async function handleLogin() {
 		try {
-			const res = await fetch('http://localhost:3000/api/login', {
+			const res = await fetch('/api/login', {
+				credentials: 'include',
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ email, pass})
@@ -35,7 +36,9 @@
 	}
 
 	onMount(async () => {
-		const res = await fetch('http://localhost:3000/');
+		const res = await fetch('/api/test', {
+			credentials: 'include'
+		});
 		const data = await res.json();
 		console.log(data.message);
 

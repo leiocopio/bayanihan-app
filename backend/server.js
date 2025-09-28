@@ -99,7 +99,7 @@ app.post("/api/login", async (req, res) => {
   res.json({ user: data.user, session: data.session });
 });
 
-app.get("/", (req, res) => {
+app.get("/api/test", (req, res) => {
   res.json({ message: "Wazzup?" });
 });
 
