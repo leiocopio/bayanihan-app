@@ -36,8 +36,7 @@
 	}
 
 	onMount(async () => {
-		const res = await fetch('/api/test', {
-			credentials: 'include'
+		const res = await fetch(backend_url + '/api/test', {
 		});
 		const data = await res.json();
 		console.log(data.message);

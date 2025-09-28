@@ -4,6 +4,8 @@
 	import { regions, provinces, cities, barangays } from 'select-philippines-address';
 
 	// Form fields
+
+	let backend_url = import.meta.env.VITE_BACKEND_URL;
 	let first_name = '';
 	let last_name = '';
 	let email = '';
@@ -85,7 +87,7 @@
 			const barangayName =
 				barangayOptions.find((b) => b.brgy_code === address_bgy)?.brgy_name || '';
 
-			const res = await fetch('/api/signup', {
+			const res = await fetch(backend_url +'/api/signup', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
