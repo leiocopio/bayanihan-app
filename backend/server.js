@@ -1,12 +1,12 @@
 import express from "express";
 import bodyParser from "body-parser";
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
+//import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import serverless from "serverless-http";
 
-dotenv.config();
+//dotenv.config();
 
 const app = express();
 
