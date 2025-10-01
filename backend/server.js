@@ -20,8 +20,6 @@ app.use(
   })
 );
 
-
-
 // Handle preflight OPTIONS
 app.options("*", cors({
   origin: process.env.FRONTEND_URL || "*",
@@ -31,7 +29,7 @@ app.options("*", cors({
 // Validate env
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_KEY in env.");
-  process.exit(1);
+  // process.exit(1);
 }
 
 const supabase = createClient(
@@ -182,6 +180,6 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "Wazzup?" });
 });
 
-export const handler = serverless(app);
+export default serverless(app);
 
 
