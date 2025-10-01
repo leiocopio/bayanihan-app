@@ -4,25 +4,27 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import serverless from "serverless-http";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
-app.use(cookieParser());
+app.use(cookieParser()); 
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL, // e.g. http://localhost:5173
+    origin: process.env.FRONTEND_URL || "*", // allow your frontend
     credentials: true,
   })
 );
 
+
+
 // Handle preflight OPTIONS
 app.options("*", cors({
-  origin: process.env.FRONTEND_URL,
+  origin: process.env.FRONTEND_URL || "*",
   credentials: true,
 }));
 
@@ -180,6 +182,6 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "Wazzup?" });
 });
 
-app.listen(PORT, () =>
-  console.log(`Server running at http://localhost:${PORT}`)
-);
+export const handler = serverless(app);
+
+
