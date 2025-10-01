@@ -6,16 +6,20 @@ import { createClient } from "@supabase/supabase-js";
 
 const fastify = Fastify();
 
-// CORS
-await fastify.register(cors, {
-  origin: process.env.FRONTEND_URL || "*",
+// ---------- CORS FIX ----------
+fastify.register(cors, {
+  origin: (origin, cb) => {
+    // Allow your frontend, or fallback to all origins
+    const allowedOrigin = process.env.FRONTEND_URL || true;
+    cb(null, allowedOrigin);
+  },
   credentials: true,
 });
 
 // Cookies
-await fastify.register(cookie);
+fastify.register(cookie);
 
-// Validate env
+// ---------- ENV VALIDATION ----------
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_KEY in env.");
 }
@@ -26,19 +30,18 @@ const supabase = createClient(
 );
 
 // ---------- AUTH HELPERS ----------
-
 function setAuthCookies(reply, session) {
   reply.setCookie("sb-access-token", session.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 1000,
+    maxAge: 60 * 60 * 1000, // 1h
   });
   reply.setCookie("sb-refresh-token", session.refresh_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7 * 1000,
+    maxAge: 60 * 60 * 24 * 7 * 1000, // 7d
   });
 }
 
@@ -92,7 +95,7 @@ fastify.post("/api/signup", async (request, reply) => {
   const { error: dbError } = await supabase.from("users").insert({
     id: data.user.id,
     email,
-    pass, // ⚠️ avoid plain text passwords!
+    pass, // ⚠️ avoid storing plain passwords in production
     first_name,
     last_name,
     address_street,
