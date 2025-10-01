@@ -1,29 +1,19 @@
-import express from "express";
-import { createClient } from "@supabase/supabase-js";
-import cors from "cors";
-import cookieParser from "cookie-parser";
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import cookie from "@fastify/cookie";
 import serverless from "serverless-http";
+import { createClient } from "@supabase/supabase-js";
 
-const app = express();
+const fastify = Fastify();
 
-app.use(express.json());
-app.use(cookieParser());
+// CORS
+await fastify.register(cors, {
+  origin: process.env.FRONTEND_URL || "*",
+  credentials: true,
+});
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "*", // allow your frontend
-    credentials: true,
-  })
-);
-
-// Handle preflight OPTIONS
-app.options(
-  "*",
-  cors({
-    origin: process.env.FRONTEND_URL || "*",
-    credentials: true,
-  })
-);
+// Cookies
+await fastify.register(cookie);
 
 // Validate env
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
@@ -37,25 +27,23 @@ const supabase = createClient(
 
 // ---------- AUTH HELPERS ----------
 
-// Save Supabase session tokens to cookies
-function setAuthCookies(res, session) {
-  res.cookie("sb-access-token", session.access_token, {
+function setAuthCookies(reply, session) {
+  reply.setCookie("sb-access-token", session.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 1000, // 1h
+    maxAge: 60 * 60 * 1000,
   });
-  res.cookie("sb-refresh-token", session.refresh_token, {
+  reply.setCookie("sb-refresh-token", session.refresh_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7 * 1000, // 7d
+    maxAge: 60 * 60 * 24 * 7 * 1000,
   });
 }
 
-// Get user from cookies
-async function getUserFromCookies(req) {
-  const accessToken = req.cookies["sb-access-token"];
+async function getUserFromCookies(request) {
+  const accessToken = request.cookies["sb-access-token"];
   if (!accessToken) return null;
 
   const {
@@ -72,8 +60,8 @@ async function getUserFromCookies(req) {
 
 // ---------- ROUTES ----------
 
-// Sign up
-app.post("/api/signup", async (req, res) => {
+// Signup
+fastify.post("/api/signup", async (request, reply) => {
   const {
     email,
     pass,
@@ -86,7 +74,7 @@ app.post("/api/signup", async (req, res) => {
     address_region,
     user_type,
     contact_number,
-  } = req.body;
+  } = request.body;
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -94,17 +82,17 @@ app.post("/api/signup", async (req, res) => {
   });
 
   if (error) {
-    if (error.message.includes("already registered")) {
-      return res.status(400).json({ error: "Email already exists" });
-    }
-    return res.status(400).json({ error: error.message });
+    return reply.code(400).send({
+      error: error.message.includes("already registered")
+        ? "Email already exists"
+        : error.message,
+    });
   }
 
-  // Insert into your own table
   const { error: dbError } = await supabase.from("users").insert({
     id: data.user.id,
     email,
-    pass, // ⚠️ storing plain password is not recommended!
+    pass, // ⚠️ avoid plain text passwords!
     first_name,
     last_name,
     address_street,
@@ -117,40 +105,34 @@ app.post("/api/signup", async (req, res) => {
   });
 
   if (dbError) {
-    return res.status(400).json({ error: dbError.message });
+    return reply.code(400).send({ error: dbError.message });
   }
 
-  res.json({ user: data.user });
+  return { user: data.user };
 });
 
 // Login
-app.post("/api/login", async (req, res) => {
-  const { email, pass } = req.body;
+fastify.post("/api/login", async (request, reply) => {
+  const { email, pass } = request.body;
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password: pass,
   });
 
-  if (error) {
-    return res.status(400).json({ error: error.message });
-  }
+  if (error) return reply.code(400).send({ error: error.message });
 
-  // Save tokens in cookies
-  setAuthCookies(res, data.session);
-
-  res.json({ user: data.user });
+  setAuthCookies(reply, data.session);
+  return { user: data.user };
 });
 
 // Profile
-app.get("/api/profile", async (req, res) => {
-  const user = await getUserFromCookies(req);
+fastify.get("/api/profile", async (request, reply) => {
+  const user = await getUserFromCookies(request);
 
-  if (!user) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
+  if (!user) return reply.code(401).send({ error: "Not authenticated" });
 
-  const { data: userProfile, error: profileError } = await supabase
+  const { data: userProfile, error } = await supabase
     .from("users")
     .select(
       "first_name, last_name, address_street, address_bgy, address_city, address_province, contact_number, email"
@@ -158,34 +140,31 @@ app.get("/api/profile", async (req, res) => {
     .eq("id", user.id)
     .single();
 
-  if (profileError) {
-    return res.status(400).json({ error: profileError.message });
-  }
+  if (error) return reply.code(400).send({ error: error.message });
 
-  res.json({ user: userProfile });
+  return { user: userProfile };
 });
 
 // Logout
-app.post("/api/logout", async (req, res) => {
-  res.clearCookie("sb-access-token");
-  res.clearCookie("sb-refresh-token");
-
-  return res.json({ message: "Logged out successfully" });
+fastify.post("/api/logout", async (request, reply) => {
+  reply.clearCookie("sb-access-token");
+  reply.clearCookie("sb-refresh-token");
+  return { message: "Logged out successfully" };
 });
 
 // Test
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Wazzup?" });
+fastify.get("/api/test", async () => {
+  return { message: "Wazzup?" };
 });
 
+// ---------- HANDLER (serverless) ----------
 let cachedHandler;
 
 async function handler(req, res) {
-    if (!cachedHandler) {
-        cachedHandler = serverless(app);
-    }
-    return cachedHandler(req, res);
+  if (!cachedHandler) {
+    cachedHandler = serverless(fastify);
+  }
+  return cachedHandler(req, res);
 }
 
-// 5. EXPORT THE HANDLER FUNCTION
-export default handler; 
+export default handler;
