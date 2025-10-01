@@ -23,8 +23,7 @@ app.use(
 );
 
 // Handle preflight OPTIONS requests
-app.options(
-  "*",
+app.use(
   cors({
     origin: process.env.FRONTEND_URL || "*",
     credentials: true,
