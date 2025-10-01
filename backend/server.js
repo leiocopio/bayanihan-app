@@ -1,25 +1,22 @@
-import Fastify from "fastify";
-import cors from "@fastify/cors";
-import cookie from "@fastify/cookie";
-import serverless from "serverless-http";
-import { createClient } from "@supabase/supabase-js";
+const fastify = require("fastify")();
+const cors = require("@fastify/cors");
+const cookie = require("@fastify/cookie");
+const serverless = require("serverless-http");
+const { createClient } = require("@supabase/supabase-js");
 
-const fastify = Fastify();
-
-// ---------- CORS FIX ----------
+// ---------- CORS ----------
 fastify.register(cors, {
   origin: (origin, cb) => {
-    // Allow your frontend, or fallback to all origins
-    const allowedOrigin = process.env.FRONTEND_URL || true;
+    const allowedOrigin = process.env.FRONTEND_URL || true; // Allow all if not set
     cb(null, allowedOrigin);
   },
   credentials: true,
 });
 
-// Cookies
+// ---------- Cookies ----------
 fastify.register(cookie);
 
-// ---------- ENV VALIDATION ----------
+// ---------- Supabase ----------
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_KEY in env.");
 }
@@ -35,13 +32,13 @@ function setAuthCookies(reply, session) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 1000, // 1h
+    maxAge: 60 * 60 * 1000,
   });
   reply.setCookie("sb-refresh-token", session.refresh_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7 * 1000, // 7d
+    maxAge: 60 * 60 * 24 * 7 * 1000,
   });
 }
 
@@ -49,16 +46,13 @@ async function getUserFromCookies(request) {
   const accessToken = request.cookies["sb-access-token"];
   if (!accessToken) return null;
 
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(accessToken);
+  const { data, error } = await supabase.auth.getUser(accessToken);
 
   if (error) {
     console.error("getUser error:", error.message);
     return null;
   }
-  return user;
+  return data.user;
 }
 
 // ---------- ROUTES ----------
@@ -95,7 +89,7 @@ fastify.post("/api/signup", async (request, reply) => {
   const { error: dbError } = await supabase.from("users").insert({
     id: data.user.id,
     email,
-    pass, // ⚠️ avoid storing plain passwords in production
+    pass, // ⚠️ Avoid plain text passwords in production
     first_name,
     last_name,
     address_street,
@@ -170,4 +164,4 @@ async function handler(req, res) {
   return cachedHandler(req, res);
 }
 
-export default handler;
+module.exports = handler;
