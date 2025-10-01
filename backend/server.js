@@ -1,18 +1,13 @@
 import express from "express";
-import bodyParser from "body-parser";
 import { createClient } from "@supabase/supabase-js";
-//import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import serverless from "serverless-http";
 
-//dotenv.config();
-
 const app = express();
 
-//app.use(bodyParser.json());
 app.use(express.json());
-app.use(cookieParser()); 
+app.use(cookieParser());
 
 app.use(
   cors({
@@ -22,15 +17,17 @@ app.use(
 );
 
 // Handle preflight OPTIONS
-app.options("*", cors({
-  origin: process.env.FRONTEND_URL || "*",
-  credentials: true,
-}));
+app.options(
+  "*",
+  cors({
+    origin: process.env.FRONTEND_URL || "*",
+    credentials: true,
+  })
+);
 
 // Validate env
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
   console.error("Missing SUPABASE_URL or SUPABASE_KEY in env.");
-  // process.exit(1);
 }
 
 const supabase = createClient(
@@ -181,6 +178,14 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "Wazzup?" });
 });
 
-export default serverless(app);
+let cachedHandler;
 
+async function handler(req, res) {
+    if (!cachedHandler) {
+        cachedHandler = serverless(app);
+    }
+    return cachedHandler(req, res);
+}
 
+// 5. EXPORT THE HANDLER FUNCTION
+export default handler; 
