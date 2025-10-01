@@ -10,7 +10,8 @@ import serverless from "serverless-http";
 
 const app = express();
 
-app.use(bodyParser.json());
+//app.use(bodyParser.json());
+app.use(express.json());
 app.use(cookieParser()); 
 
 app.use(
