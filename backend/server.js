@@ -1,64 +1,86 @@
-const fastify = require("fastify")();
-const cors = require("@fastify/cors");
-const cookie = require("@fastify/cookie");
+// ----------------- DOTENV (local only) -----------------
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
+
+const express = require("express");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const serverless = require("serverless-http");
 const { createClient } = require("@supabase/supabase-js");
 
-// ---------- CORS ----------
-fastify.register(cors, {
-  origin: (origin, cb) => {
-    const allowedOrigin = process.env.FRONTEND_URL || true; // Allow all if not set
-    cb(null, allowedOrigin);
-  },
-  credentials: true,
-});
+const app = express();
 
-// ---------- Cookies ----------
-fastify.register(cookie);
+// ----------------- MIDDLEWARE -----------------
+app.use(express.json());
+app.use(cookieParser());
 
-// ---------- Supabase ----------
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "*",
+    credentials: true,
+  })
+);
+
+// Handle preflight OPTIONS requests
+app.options(
+  "*",
+  cors({
+    origin: process.env.FRONTEND_URL || "*",
+    credentials: true,
+  })
+);
+
+// ----------------- ENV CHECK -----------------
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-  console.error("Missing SUPABASE_URL or SUPABASE_KEY in env.");
+  console.error("❌ Missing SUPABASE_URL or SUPABASE_KEY in environment variables.");
+  process.exit(1);
 }
 
+// ----------------- SUPABASE -----------------
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// ---------- AUTH HELPERS ----------
-function setAuthCookies(reply, session) {
-  reply.setCookie("sb-access-token", session.access_token, {
+// ----------------- AUTH HELPERS -----------------
+function setAuthCookies(res, session) {
+  res.cookie("sb-access-token", session.access_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 1000,
+    maxAge: 60 * 60 * 1000, // 1h
   });
-  reply.setCookie("sb-refresh-token", session.refresh_token, {
+  res.cookie("sb-refresh-token", session.refresh_token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7 * 1000,
+    maxAge: 60 * 60 * 24 * 7 * 1000, // 7d
   });
 }
 
-async function getUserFromCookies(request) {
-  const accessToken = request.cookies["sb-access-token"];
+async function getUserFromCookies(req) {
+  const accessToken = req.cookies["sb-access-token"];
   if (!accessToken) return null;
 
-  const { data, error } = await supabase.auth.getUser(accessToken);
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(accessToken);
 
   if (error) {
     console.error("getUser error:", error.message);
     return null;
   }
-  return data.user;
+  return user;
 }
 
-// ---------- ROUTES ----------
+// ----------------- ROUTES -----------------
+app.get("/api/test", (req, res) => {
+  res.json({ message: "Wazzup? 🚀" });
+});
 
-// Signup
-fastify.post("/api/signup", async (request, reply) => {
+app.post("/api/signup", async (req, res) => {
   const {
     email,
     pass,
@@ -71,7 +93,7 @@ fastify.post("/api/signup", async (request, reply) => {
     address_region,
     user_type,
     contact_number,
-  } = request.body;
+  } = req.body;
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -79,7 +101,7 @@ fastify.post("/api/signup", async (request, reply) => {
   });
 
   if (error) {
-    return reply.code(400).send({
+    return res.status(400).json({
       error: error.message.includes("already registered")
         ? "Email already exists"
         : error.message,
@@ -89,7 +111,7 @@ fastify.post("/api/signup", async (request, reply) => {
   const { error: dbError } = await supabase.from("users").insert({
     id: data.user.id,
     email,
-    pass, // ⚠️ Avoid plain text passwords in production
+    pass, // ⚠️ don’t store plain text passwords in prod
     first_name,
     last_name,
     address_street,
@@ -101,33 +123,28 @@ fastify.post("/api/signup", async (request, reply) => {
     contact_number,
   });
 
-  if (dbError) {
-    return reply.code(400).send({ error: dbError.message });
-  }
+  if (dbError) return res.status(400).json({ error: dbError.message });
 
-  return { user: data.user };
+  res.json({ user: data.user });
 });
 
-// Login
-fastify.post("/api/login", async (request, reply) => {
-  const { email, pass } = request.body;
+app.post("/api/login", async (req, res) => {
+  const { email, pass } = req.body;
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password: pass,
   });
 
-  if (error) return reply.code(400).send({ error: error.message });
+  if (error) return res.status(400).json({ error: error.message });
 
-  setAuthCookies(reply, data.session);
-  return { user: data.user };
+  setAuthCookies(res, data.session);
+  res.json({ user: data.user });
 });
 
-// Profile
-fastify.get("/api/profile", async (request, reply) => {
-  const user = await getUserFromCookies(request);
-
-  if (!user) return reply.code(401).send({ error: "Not authenticated" });
+app.get("/api/profile", async (req, res) => {
+  const user = await getUserFromCookies(req);
+  if (!user) return res.status(401).json({ error: "Not authenticated" });
 
   const { data: userProfile, error } = await supabase
     .from("users")
@@ -137,31 +154,32 @@ fastify.get("/api/profile", async (request, reply) => {
     .eq("id", user.id)
     .single();
 
-  if (error) return reply.code(400).send({ error: error.message });
+  if (error) return res.status(400).json({ error: error.message });
 
-  return { user: userProfile };
+  res.json({ user: userProfile });
 });
 
-// Logout
-fastify.post("/api/logout", async (request, reply) => {
-  reply.clearCookie("sb-access-token");
-  reply.clearCookie("sb-refresh-token");
-  return { message: "Logged out successfully" };
+app.post("/api/logout", (req, res) => {
+  res.clearCookie("sb-access-token");
+  res.clearCookie("sb-refresh-token");
+  res.json({ message: "Logged out successfully" });
 });
 
-// Test
-fastify.get("/api/test", async () => {
-  return { message: "Wazzup?" };
-});
-
-// ---------- HANDLER (serverless) ----------
+// ----------------- HANDLER (serverless) -----------------
 let cachedHandler;
-
 async function handler(req, res) {
   if (!cachedHandler) {
-    cachedHandler = serverless(fastify);
+    cachedHandler = serverless(app);
   }
   return cachedHandler(req, res);
 }
 
 module.exports = handler;
+
+// ----------------- LOCAL DEV -----------------
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`✅ Express running at http://localhost:${PORT}`);
+  });
+}
