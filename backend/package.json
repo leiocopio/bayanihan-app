@@ -1,15 +1,15 @@
 {
   "dependencies": {
-    "@fastify/cookie": "^11.0.2",
-    "@fastify/cors": "^8.5.0",
     "@supabase/supabase-js": "^2.58.0",
-    "body-parser": "^2.2.0",
+    "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
-    "nodemon": "^3.1.10",
     "serverless-http": "^4.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   },
   "scripts": {
     "dev": "nodemon server.js"
