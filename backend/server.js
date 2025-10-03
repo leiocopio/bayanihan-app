@@ -1,3 +1,5 @@
+// server.js
+
 // ----------------- DOTENV (local only) -----------------
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
@@ -6,14 +8,19 @@ if (process.env.NODE_ENV !== "production") {
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const compression = require("compression");
 const serverless = require("serverless-http");
 const { createClient } = require("@supabase/supabase-js");
 
+
+// ----------------- INIT APP -----------------
 const app = express();
 
 // ----------------- MIDDLEWARE -----------------
-app.use(express.json());
-app.use(cookieParser());
+app.use(compression()); // 🚀 Gzip/deflate responses
+app.use(express.json()); // JSON body parsing
+app.use(cookieParser()); // Parse cookies
+
 app.use(
   cors({
     origin: process.env.FRONTEND_URL || "*",
@@ -21,17 +28,17 @@ app.use(
   })
 );
 
-// ----------------- ENV CHECK -----------------
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
-  console.error("❌ Missing SUPABASE_URL or SUPABASE_KEY in environment variables.");
-  process.exit(1);
+// ----------------- SUPABASE (lazy init) -----------------
+let supabase;
+function getSupabase() {
+  if (!supabase) {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+      throw new Error("❌ Missing SUPABASE_URL or SUPABASE_KEY in environment variables.");
+    }
+    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+  }
+  return supabase;
 }
-
-// ----------------- SUPABASE -----------------
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
 
 // ----------------- AUTH HELPERS -----------------
 function setAuthCookies(res, session) {
@@ -53,7 +60,7 @@ async function getUserFromCookies(req) {
   const accessToken = req.cookies["sb-access-token"];
   if (!accessToken) return null;
 
-  const { data, error } = await supabase.auth.getUser(accessToken);
+  const { data, error } = await getSupabase().auth.getUser(accessToken);
   if (error) {
     console.error("getUser error:", error.message);
     return null;
@@ -62,10 +69,14 @@ async function getUserFromCookies(req) {
 }
 
 // ----------------- ROUTES -----------------
+
+// Health check / test
 app.get("/api/test", (req, res) => {
+  res.set("Cache-Control", "s-maxage=60, stale-while-revalidate"); // Edge caching
   res.json({ message: "Wazzup? 🚀" });
 });
 
+// Signup
 app.post("/api/signup", async (req, res) => {
   const {
     email,
@@ -80,6 +91,8 @@ app.post("/api/signup", async (req, res) => {
     user_type,
     contact_number,
   } = req.body;
+
+  const supabase = getSupabase();
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -97,7 +110,7 @@ app.post("/api/signup", async (req, res) => {
   const { error: dbError } = await supabase.from("users").insert({
     id: data.user.id,
     email,
-    pass, // ⚠️ don't store plain passwords in prod
+    pass, // ⚠️ don't store plain text in prod!
     first_name,
     last_name,
     address_street,
@@ -114,8 +127,10 @@ app.post("/api/signup", async (req, res) => {
   res.json({ user: data.user });
 });
 
+// Login
 app.post("/api/login", async (req, res) => {
   const { email, pass } = req.body;
+  const supabase = getSupabase();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
@@ -128,9 +143,12 @@ app.post("/api/login", async (req, res) => {
   res.json({ user: data.user });
 });
 
+// Profile
 app.get("/api/profile", async (req, res) => {
   const user = await getUserFromCookies(req);
   if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+  const supabase = getSupabase();
 
   const { data: userProfile, error } = await supabase
     .from("users")
@@ -145,15 +163,23 @@ app.get("/api/profile", async (req, res) => {
   res.json({ user: userProfile });
 });
 
+// Logout
 app.post("/api/logout", (req, res) => {
   res.clearCookie("sb-access-token");
   res.clearCookie("sb-refresh-token");
   res.json({ message: "Logged out successfully" });
 });
 
-// ----------------- EXPORT FOR VERCEL -----------------
-module.exports = app;
-module.exports.handler = serverless(app);
+// ----------------- HANDLER (serverless) -----------------
+let cachedHandler;
+async function handler(req, res) {
+  if (!cachedHandler) {
+    cachedHandler = serverless(app);
+  }
+  return cachedHandler(req, res);
+}
+
+module.exports = handler;
 
 // ----------------- LOCAL DEV -----------------
 if (require.main === module) {
