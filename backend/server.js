@@ -75,94 +75,13 @@ async function getUserFromCookies(req) {
 }
 
 // ----------------- ROUTES -----------------
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Wazzup? 🚀" });
-});
+const testRoutes = require("./routes/test");
+const authRoutes = require("./routes/auth")(supabase, setAuthCookies);
+const profileRoutes = require("./routes/profile")(supabase, getUserFromCookies);
 
-app.post("/api/signup", async (req, res) => {
-  const {
-    email,
-    pass,
-    first_name,
-    last_name,
-    address_street,
-    address_bgy,
-    address_city,
-    address_province,
-    address_region,
-    user_type,
-    contact_number,
-  } = req.body;
-
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password: pass,
-  });
-
-  if (error) {
-    return res.status(400).json({
-      error: error.message.includes("already registered")
-        ? "Email already exists"
-        : error.message,
-    });
-  }
-
-  const { error: dbError } = await supabase.from("users").insert({
-    id: data.user.id,
-    email,
-    pass, // ⚠️ don’t store plain text passwords in prod
-    first_name,
-    last_name,
-    address_street,
-    address_bgy,
-    address_city,
-    address_province,
-    address_region,
-    user_type,
-    contact_number,
-  });
-
-  if (dbError) return res.status(400).json({ error: dbError.message });
-
-  res.json({ user: data.user });
-});
-
-app.post("/api/login", async (req, res) => {
-  const { email, pass } = req.body;
-
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password: pass,
-  });
-
-  if (error) return res.status(400).json({ error: error.message });
-
-  setAuthCookies(res, data.session);
-  res.json({ user: data.user });
-});
-
-app.get("/api/profile", async (req, res) => {
-  const user = await getUserFromCookies(req);
-  if (!user) return res.status(401).json({ error: "Not authenticated" });
-
-  const { data: userProfile, error } = await supabase
-    .from("users")
-    .select(
-      "first_name, last_name, address_street, address_bgy, address_city, address_province, contact_number, email"
-    )
-    .eq("id", user.id)
-    .single();
-
-  if (error) return res.status(400).json({ error: error.message });
-
-  res.json({ user: userProfile });
-});
-
-app.post("/api/logout", (req, res) => {
-  res.clearCookie("sb-access-token");
-  res.clearCookie("sb-refresh-token");
-  res.json({ message: "Logged out successfully" });
-});
+app.use("/api", testRoutes);
+app.use("/api", authRoutes);
+app.use("/api", profileRoutes);
 
 // ----------------- HANDLER (serverless) -----------------
 let cachedHandler;
