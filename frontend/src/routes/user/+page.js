@@ -1,30 +1,46 @@
+import { supabase } from '$lib/supabaseClient';
 import { redirect } from '@sveltejs/kit';
 
+/** @type {import('./$types').PageLoad} */
+export async function load() {
+    // 1. Get the authenticated user session
+    const { data: authData, error: authError } = await supabase.auth.getUser();
 
-const backend_url = import.meta.env.VITE_BACKEND_URL;
+    if (authError || !authData.user) {
+        // Redirect if not logged in
+        throw redirect(303, '/'); 
+    }
+    
+    const user = authData.user;
 
+    // 2. Fetch the custom profile data from your database table
+    const { data: profile, error: profileError } = await supabase
+        .from('users') // <-- Replace 'profiles' with your actual table name if different
+        .select(`
+            first_name, 
+            last_name, 
+            address_street, 
+            address_bgy, 
+            address_city, 
+            address_province, 
+            contact_number
+        `)
+        .eq('id', user.id) // <-- Link the profile using the user's ID
+        .single(); // <-- Expecting one row
 
-export async function load({ fetch }) {
-	// ask backend for profile
-	const res = await fetch(backend_url + '/api/profile', {
-		
-	});
+    if (profileError) {
+        console.error('Error fetching profile:', profileError);
+        // You might want to throw an error or redirect here too
+    }
 
-	// not authenticated → redirect
-	if (res.status === 401) {
-		throw redirect(302, '/');
-	}
+    // 3. Combine the Auth data and the Profile data into a single object
+    const completeUser = {
+        ...user, // Includes standard fields like 'email' and 'id'
+        ...profile // Includes custom fields like 'first_name' and 'address_street'
+    };
 
-	// parse response
-	const data = await res.json();
-
-	if (!res.ok) {
-		// optionally throw an error that SvelteKit will catch
-		throw new Error(data.error || 'Failed to load profile');
-	}
-
-	return {
-		user: data.user
-	};
+    // Return the complete user object to the Svelte component
+    return {
+        user: completeUser
+    };
 }
-// user is authenticated → return user data to the page

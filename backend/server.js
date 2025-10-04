@@ -12,7 +12,7 @@ const compression = require("compression");
 const serverless = require("serverless-http");
 const { createClient } = require("@supabase/supabase-js");
 
-
+x
 // ----------------- INIT APP -----------------
 const app = express();
 

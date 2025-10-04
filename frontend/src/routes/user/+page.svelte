@@ -1,43 +1,34 @@
 <script>
-	import { goto } from '$app/navigation';
-	export let data; // comes from +page.js
+    import { supabase } from '$lib/supabaseClient';
 
-	const user = data.user;
+    // The data prop is automatically populated by the +page.js loader
+    export let data;
+    const user = data.user; 
+    
+    // No more onMount necessary for fetching user or redirecting!
 
-	async function handleLogout() {
-		if (!confirm('Are you sure you want to log out?')) return;
-
-		try {
-			const res = await fetch('/api/logout', {
-				method: 'POST',
-				credentials: 'include'
-			});
-
-			if (res.ok) {
-				goto('/'); // redirect home
-			} else {
-				const data = await res.json();
-				alert(data.error || 'Logout failed');
-			}
-		} catch (err) {
-			alert('Network error while logging out');
-			goto('/');
-		}
-	}
+    async function handleLogout() {
+        await supabase.auth.signOut();
+        window.location.href = '/';
+    }
 </script>
 
 <div class="mx-2 flex flex-col items-center justify-center">
 	<h1 class="mb-4 text-2xl font-bold">User Profile</h1>
 
-	<div id="profile-pic"></div>
+
+		<div id="profile-pic"></div>
+
 
 	{#if user}
 		<div>
 			<p><b>Name:</b><br />{user.first_name || 'N/A'} {user.last_name || ''}</p>
 			<p>
 				<b>Address:</b><br />
-				{user.address_street || ''} {user.address_bgy || ''}
-				{user.address_city || ''} {user.address_province || ''}
+				{user.address_street || ''}
+				{user.address_bgy || ''}
+				{user.address_city || ''}
+				{user.address_province || ''}
 			</p>
 			<p><b>Contact:</b><br />{user.contact_number || 'N/A'}</p>
 			<p><b>Email:</b><br />{user.email}</p>
@@ -46,8 +37,6 @@
 		<p class="text-red-600">Failed to load profile</p>
 	{/if}
 </div>
-
-<p>Settings</p>
 <br />
 
 <button
@@ -66,4 +55,3 @@
 		margin-bottom: 1rem;
 	}
 </style>
-<!-- --- a/file:///c%3A/Users/Lei%20Ocopio/OneDrive/Documents/bayanihan-app/frontend/src/routes/user/%2Bpage.js -->
